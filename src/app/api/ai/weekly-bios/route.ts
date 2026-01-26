@@ -1,9 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { checkAuthFromRequest } from '@/lib/authCheck';
 import { checkRateLimit, RATE_LIMITS } from '@/lib/rateLimit';
+import { type WeeklyBios } from '@/lib/aiTypes';
 import { generateWeeklyBiosGemini } from '@/lib/gemini';
+import { getAICache, setAICache, invalidateAICache, recordUsageAndCheckBudget } from '@/lib/aiCache';
 
-const MAX_ARTICLES = 100;
+const MAX_ARTICLES = 500;
 
 export async function POST(request: NextRequest) {
   const authResult = await checkAuthFromRequest(request);
@@ -15,9 +17,11 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  const userId = authResult.uid || authResult.email || 'anonymous';
+
   // Rate limiting by user
   const rateLimitResult = checkRateLimit(
-    authResult.uid || authResult.email || 'anonymous',
+    userId,
     'ai/weekly-bios',
     RATE_LIMITS.ai
   );
@@ -35,8 +39,9 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const { articles } = await request.json() as {
+    const { articles, forceRefresh = false } = await request.json() as {
       articles: Array<{ title: string; description: string; category: string; source: string; publishedAt: string }>;
+      forceRefresh?: boolean;
     };
 
     if (!articles || !Array.isArray(articles)) {
@@ -54,6 +59,26 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Check cache first (unless force refresh)
+    if (!forceRefresh) {
+      const cached = await getAICache<WeeklyBios>(userId, 'weekly-bios');
+      if (cached) {
+        return NextResponse.json({ ...cached, cached: true });
+      }
+    } else {
+      // Invalidate existing cache on force refresh
+      await invalidateAICache(userId, 'weekly-bios');
+    }
+
+    // Check daily budget before making AI call
+    const budgetCheck = await recordUsageAndCheckBudget('weekly-bios', forceRefresh);
+    if (!budgetCheck.allowed) {
+      return NextResponse.json(
+        { error: budgetCheck.reason || 'Daily AI budget exceeded' },
+        { status: 429 }
+      );
+    }
+
     if (!process.env.GEMINI_API_KEY) {
       return NextResponse.json(
         { error: 'Service temporarily unavailable' },
@@ -63,7 +88,10 @@ export async function POST(request: NextRequest) {
 
     const weeklyBios = await generateWeeklyBiosGemini(articles);
 
-    return NextResponse.json(weeklyBios);
+    // Cache the result
+    await setAICache(userId, 'weekly-bios', weeklyBios);
+
+    return NextResponse.json({ ...weeklyBios, cached: false });
   } catch (error) {
     console.error('AI weekly bios error:', error);
     return NextResponse.json(

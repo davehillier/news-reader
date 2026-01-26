@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Sparkles, Loader2, MessageCircle, TrendingUp, Coffee, X } from 'lucide-react';
+import { Sparkles, Loader2, MessageCircle, TrendingUp, Coffee, X, RefreshCw, Clock } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import type { Article } from '@/types';
 import type { MorningBriefing, AIProvider } from '@/lib/aiTypes';
@@ -27,11 +27,12 @@ export function AIBriefing({ articles }: AIBriefingProps) {
   const [provider, setProvider] = useState<AIProvider>('gemini');
   const [usedProvider, setUsedProvider] = useState<AIProvider | null>(null);
   const [isHidden, setIsHidden] = useState(false);
+  const [isCached, setIsCached] = useState(false);
 
   // Only show for authenticated users; server determines if AI access is allowed
   if (!user || isHidden) return null;
 
-  const generateBriefing = async (selectedProvider: AIProvider = provider) => {
+  const generateBriefing = async (selectedProvider: AIProvider = provider, forceRefresh = false) => {
     setLoading(true);
     setError(null);
     setIsOpen(true);
@@ -54,6 +55,7 @@ export function AIBriefing({ articles }: AIBriefingProps) {
             source: a.source.name,
           })),
           provider: selectedProvider,
+          forceRefresh,
         }),
       });
 
@@ -75,6 +77,7 @@ export function AIBriefing({ articles }: AIBriefingProps) {
       const data = await response.json();
       setBriefing(data);
       setUsedProvider(data.provider || selectedProvider);
+      setIsCached(data.cached || false);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Something went wrong');
     } finally {
@@ -276,14 +279,24 @@ export function AIBriefing({ articles }: AIBriefingProps) {
                     </ul>
                   </section>
 
-                  {/* Regenerate button */}
-                  <div className="pt-4 border-t border-[var(--color-pearl)] flex justify-end">
+                  {/* Footer */}
+                  <div className="pt-4 border-t border-[var(--color-pearl)] flex items-center justify-between">
+                    <div className="flex items-center gap-2 text-xs text-[var(--color-silver)]">
+                      {isCached && (
+                        <div className="flex items-center gap-1 text-[var(--color-bronze)]">
+                          <Clock className="w-3 h-3" />
+                          <span>Cached</span>
+                        </div>
+                      )}
+                    </div>
                     <button
-                      onClick={() => generateBriefing()}
-                      className="text-sm text-[var(--color-bronze)] hover:text-[var(--color-bronze-dark)]
-                               font-medium transition-colors"
+                      onClick={() => generateBriefing(provider, true)}
+                      disabled={loading}
+                      className="flex items-center gap-1 text-sm text-[var(--color-bronze)] hover:text-[var(--color-bronze-dark)]
+                               font-medium transition-colors disabled:opacity-50"
                     >
-                      Regenerate
+                      <RefreshCw className="w-3 h-3" />
+                      Refresh
                     </button>
                   </div>
                 </div>

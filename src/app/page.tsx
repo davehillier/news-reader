@@ -9,6 +9,7 @@ import { AIBriefing } from '@/components/ai/AIBriefing';
 import { AIChat } from '@/components/ai/AIChat';
 import { AITalkingPoints } from '@/components/ai/AITalkingPoints';
 import { AIWeeklyBios } from '@/components/ai/AIWeeklyBios';
+import { AIEmailDigest } from '@/components/ai/AIEmailDigest';
 import { useFeed } from '@/hooks/useFeed';
 import type { Category } from '@/types';
 import { AlertCircle, RefreshCw } from 'lucide-react';
@@ -86,6 +87,7 @@ export default function HomePage() {
               <AIBriefing articles={articles} />
               <AITalkingPoints articles={articles} />
               <AIWeeklyBios articles={articles} />
+              <AIEmailDigest articles={articles} />
               <AIChat articles={articles} />
             </>
           )}

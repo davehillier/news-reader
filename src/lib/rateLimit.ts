@@ -82,10 +82,10 @@ export function checkRateLimit(
 
 // Default rate limits for different endpoint types
 export const RATE_LIMITS = {
-  // AI endpoints - more restrictive due to cost
+  // AI endpoints - restrictive due to cost
   ai: {
     windowMs: 60 * 1000,  // 1 minute
-    maxRequests: 10,       // 10 requests per minute
+    maxRequests: 5,        // 5 requests per minute (reduced from 10)
   },
   // Preferences - moderate limits
   preferences: {

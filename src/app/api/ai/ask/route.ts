@@ -4,8 +4,9 @@ import { checkRateLimit, RATE_LIMITS } from '@/lib/rateLimit';
 import { type AIProvider } from '@/lib/aiTypes';
 import { askAboutNews as askAboutNewsClaude } from '@/lib/claude';
 import { askAboutNewsGemini } from '@/lib/gemini';
+import { recordUsageAndCheckBudget } from '@/lib/aiCache';
 
-const MAX_ARTICLES = 50;
+const MAX_ARTICLES = 500;
 const MAX_QUESTION_LENGTH = 1000;
 
 export async function POST(request: NextRequest) {
@@ -71,6 +72,15 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         { error: `Too many articles. Maximum is ${MAX_ARTICLES}` },
         { status: 400 }
+      );
+    }
+
+    // Check daily budget before making AI call
+    const budgetCheck = await recordUsageAndCheckBudget('ask', false);
+    if (!budgetCheck.allowed) {
+      return NextResponse.json(
+        { error: budgetCheck.reason || 'Daily AI budget exceeded' },
+        { status: 429 }
       );
     }
 

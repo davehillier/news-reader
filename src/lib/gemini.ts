@@ -59,9 +59,13 @@ export async function generateMorningBriefingGemini(
   const client = getGeminiClient();
   const model = client.getGenerativeModel({ model: 'gemini-2.0-flash' });
 
+  // Only use first 15 articles, truncate descriptions to save tokens
   const articleList = articles
     .slice(0, 15)
-    .map((a, i) => `${i + 1}. [${a.category.toUpperCase()}] ${a.title} (${a.source})\n   ${a.description}`)
+    .map((a, i) => {
+      const desc = a.description?.slice(0, 150) || '';
+      return `${i + 1}. [${a.category.toUpperCase()}] ${a.title} (${a.source})${desc ? `\n   ${desc}` : ''}`;
+    })
     .join('\n\n');
 
   const hour = new Date().getHours();
@@ -116,9 +120,13 @@ export async function askAboutNewsGemini(
   const client = getGeminiClient();
   const model = client.getGenerativeModel({ model: 'gemini-2.0-flash' });
 
+  // Truncate descriptions to save tokens
   const articleContext = articles
     .slice(0, 20)
-    .map((a) => `[${a.category}] ${a.title}: ${a.description}`)
+    .map((a) => {
+      const desc = a.description?.slice(0, 100) || '';
+      return `[${a.category}] ${a.title}${desc ? `: ${desc}` : ''}`;
+    })
     .join('\n');
 
   const prompt = `You are a helpful news analyst. Based on today's news, answer this question concisely.
@@ -140,22 +148,13 @@ export async function generateTalkingPointsGemini(
   const client = getGeminiClient();
   const model = client.getGenerativeModel({ model: 'gemini-2.0-flash' });
 
-  // Group by recency
-  const now = new Date();
-  const todayArticles = articles.filter(a => {
-    const pubDate = new Date(a.publishedAt);
-    return (now.getTime() - pubDate.getTime()) < 24 * 60 * 60 * 1000;
-  });
-
-  const weekArticles = articles.filter(a => {
-    const pubDate = new Date(a.publishedAt);
-    const diff = now.getTime() - pubDate.getTime();
-    return diff >= 24 * 60 * 60 * 1000 && diff < 7 * 24 * 60 * 60 * 1000;
-  });
-
+  // Truncate descriptions to save tokens
   const articleList = articles
     .slice(0, 20)
-    .map((a, i) => `${i + 1}. [${a.category.toUpperCase()}] ${a.title} (${a.source})\n   ${a.description}`)
+    .map((a, i) => {
+      const desc = a.description?.slice(0, 150) || '';
+      return `${i + 1}. [${a.category.toUpperCase()}] ${a.title} (${a.source})${desc ? `\n   ${desc}` : ''}`;
+    })
     .join('\n\n');
 
   const prompt = `You are a sophisticated conversationalist helping a professional stay informed. Analyse these news stories and create talking points that would impress colleagues.
@@ -247,9 +246,13 @@ export async function generateWeeklyBiosGemini(
   const client = getGeminiClient();
   const model = client.getGenerativeModel({ model: 'gemini-2.0-flash' });
 
+  // Truncate descriptions to save tokens
   const articleList = articles
     .slice(0, 30)
-    .map((a, i) => `${i + 1}. [${a.category.toUpperCase()}] ${a.title} (${a.source})\n   ${a.description}`)
+    .map((a, i) => {
+      const desc = a.description?.slice(0, 150) || '';
+      return `${i + 1}. [${a.category.toUpperCase()}] ${a.title} (${a.source})${desc ? `\n   ${desc}` : ''}`;
+    })
     .join('\n\n');
 
   const prompt = `You are a news analyst creating a "Who's Who" guide for this week's news. Analyse these stories and identify the 10 most prominent people mentioned.

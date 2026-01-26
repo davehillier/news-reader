@@ -1,11 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { checkAuthFromRequest } from '@/lib/authCheck';
 import { checkRateLimit, RATE_LIMITS } from '@/lib/rateLimit';
-import { type AIProvider } from '@/lib/aiTypes';
+import { type AIProvider, type TalkingPoints } from '@/lib/aiTypes';
 import { generateTalkingPoints as generateTalkingPointsClaude } from '@/lib/claude';
 import { generateTalkingPointsGemini } from '@/lib/gemini';
+import { getAICache, setAICache, invalidateAICache, recordUsageAndCheckBudget } from '@/lib/aiCache';
 
-const MAX_ARTICLES = 100;
+const MAX_ARTICLES = 500;
+
+interface CachedTalkingPoints extends TalkingPoints {
+  provider: AIProvider;
+}
 
 export async function POST(request: NextRequest) {
   const authResult = await checkAuthFromRequest(request);
@@ -17,9 +22,11 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  const userId = authResult.uid || authResult.email || 'anonymous';
+
   // Rate limiting by user
   const rateLimitResult = checkRateLimit(
-    authResult.uid || authResult.email || 'anonymous',
+    userId,
     'ai/talking-points',
     RATE_LIMITS.ai
   );
@@ -37,9 +44,10 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const { articles, provider = 'gemini' } = await request.json() as {
+    const { articles, provider = 'gemini', forceRefresh = false } = await request.json() as {
       articles: Array<{ title: string; description: string; category: string; source: string; publishedAt: string }>;
       provider?: AIProvider;
+      forceRefresh?: boolean;
     };
 
     if (!articles || !Array.isArray(articles)) {
@@ -57,7 +65,27 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    let talkingPoints;
+    // Check cache first (unless force refresh)
+    if (!forceRefresh) {
+      const cached = await getAICache<CachedTalkingPoints>(userId, 'talking-points');
+      if (cached) {
+        return NextResponse.json({ ...cached, cached: true });
+      }
+    } else {
+      // Invalidate existing cache on force refresh
+      await invalidateAICache(userId, 'talking-points');
+    }
+
+    // Check daily budget before making AI call
+    const budgetCheck = await recordUsageAndCheckBudget('talking-points', forceRefresh);
+    if (!budgetCheck.allowed) {
+      return NextResponse.json(
+        { error: budgetCheck.reason || 'Daily AI budget exceeded' },
+        { status: 429 }
+      );
+    }
+
+    let talkingPoints: TalkingPoints;
 
     if (provider === 'gemini') {
       if (!process.env.GEMINI_API_KEY) {
@@ -77,7 +105,11 @@ export async function POST(request: NextRequest) {
       talkingPoints = await generateTalkingPointsClaude(articles);
     }
 
-    return NextResponse.json({ ...talkingPoints, provider });
+    // Cache the result
+    const resultWithProvider: CachedTalkingPoints = { ...talkingPoints, provider };
+    await setAICache(userId, 'talking-points', resultWithProvider);
+
+    return NextResponse.json({ ...resultWithProvider, cached: false });
   } catch (error) {
     console.error('AI talking points error:', error);
     return NextResponse.json(

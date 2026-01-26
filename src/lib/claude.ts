@@ -68,9 +68,13 @@ export async function generateMorningBriefing(
 ): Promise<MorningBriefing> {
   const client = getAnthropicClient();
 
+  // Only use first 15 articles, truncate descriptions to save tokens
   const articleList = articles
     .slice(0, 15)
-    .map((a, i) => `${i + 1}. [${a.category.toUpperCase()}] ${a.title} (${a.source})\n   ${a.description}`)
+    .map((a, i) => {
+      const desc = a.description?.slice(0, 150) || '';
+      return `${i + 1}. [${a.category.toUpperCase()}] ${a.title} (${a.source})${desc ? `\n   ${desc}` : ''}`;
+    })
     .join('\n\n');
 
   const hour = new Date().getHours();
@@ -131,9 +135,13 @@ export async function askAboutNews(
 ): Promise<string> {
   const client = getAnthropicClient();
 
+  // Truncate descriptions to save tokens
   const articleContext = articles
     .slice(0, 20)
-    .map((a) => `[${a.category}] ${a.title}: ${a.description}`)
+    .map((a) => {
+      const desc = a.description?.slice(0, 100) || '';
+      return `[${a.category}] ${a.title}${desc ? `: ${desc}` : ''}`;
+    })
     .join('\n');
 
   const response = await client.messages.create({
@@ -162,9 +170,13 @@ export async function generateTalkingPoints(
 ): Promise<TalkingPoints> {
   const client = getAnthropicClient();
 
+  // Truncate descriptions to save tokens
   const articleList = articles
     .slice(0, 20)
-    .map((a, i) => `${i + 1}. [${a.category.toUpperCase()}] ${a.title} (${a.source})\n   ${a.description}`)
+    .map((a, i) => {
+      const desc = a.description?.slice(0, 150) || '';
+      return `${i + 1}. [${a.category.toUpperCase()}] ${a.title} (${a.source})${desc ? `\n   ${desc}` : ''}`;
+    })
     .join('\n\n');
 
   const response = await client.messages.create({

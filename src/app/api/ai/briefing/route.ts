@@ -1,11 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { checkAuthFromRequest } from '@/lib/authCheck';
 import { checkRateLimit, RATE_LIMITS } from '@/lib/rateLimit';
-import { type AIProvider } from '@/lib/aiTypes';
+import { type AIProvider, type MorningBriefing } from '@/lib/aiTypes';
 import { generateMorningBriefing as generateMorningBriefingClaude } from '@/lib/claude';
 import { generateMorningBriefingGemini } from '@/lib/gemini';
+import { getAICache, setAICache, invalidateAICache, recordUsageAndCheckBudget } from '@/lib/aiCache';
 
-const MAX_ARTICLES = 50;
+const MAX_ARTICLES = 500;
+
+interface CachedBriefing extends MorningBriefing {
+  provider: AIProvider;
+}
 
 export async function POST(request: NextRequest) {
   const authResult = await checkAuthFromRequest(request);
@@ -17,9 +22,11 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  const userId = authResult.uid || authResult.email || 'anonymous';
+
   // Rate limiting by user
   const rateLimitResult = checkRateLimit(
-    authResult.uid || authResult.email || 'anonymous',
+    userId,
     'ai/briefing',
     RATE_LIMITS.ai
   );
@@ -37,9 +44,10 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const { articles, provider = 'gemini' } = await request.json() as {
+    const { articles, provider = 'gemini', forceRefresh = false } = await request.json() as {
       articles: Array<{ title: string; description: string; category: string; source: string }>;
       provider?: AIProvider;
+      forceRefresh?: boolean;
     };
 
     if (!articles || !Array.isArray(articles)) {
@@ -57,7 +65,27 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    let briefing;
+    // Check cache first (unless force refresh)
+    if (!forceRefresh) {
+      const cached = await getAICache<CachedBriefing>(userId, 'briefing');
+      if (cached) {
+        return NextResponse.json({ ...cached, cached: true });
+      }
+    } else {
+      // Invalidate existing cache on force refresh
+      await invalidateAICache(userId, 'briefing');
+    }
+
+    // Check daily budget before making AI call
+    const budgetCheck = await recordUsageAndCheckBudget('briefing', forceRefresh);
+    if (!budgetCheck.allowed) {
+      return NextResponse.json(
+        { error: budgetCheck.reason || 'Daily AI budget exceeded' },
+        { status: 429 }
+      );
+    }
+
+    let briefing: MorningBriefing;
 
     if (provider === 'gemini') {
       if (!process.env.GEMINI_API_KEY) {
@@ -77,7 +105,11 @@ export async function POST(request: NextRequest) {
       briefing = await generateMorningBriefingClaude(articles);
     }
 
-    return NextResponse.json({ ...briefing, provider });
+    // Cache the result
+    const resultWithProvider: CachedBriefing = { ...briefing, provider };
+    await setAICache(userId, 'briefing', resultWithProvider);
+
+    return NextResponse.json({ ...resultWithProvider, cached: false });
   } catch (error) {
     console.error('AI briefing error:', error);
     return NextResponse.json(

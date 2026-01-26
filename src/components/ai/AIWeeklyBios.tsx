@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Users, Loader2, X, ChevronRight, ExternalLink } from 'lucide-react';
+import { Users, Loader2, X, ChevronRight, ExternalLink, RefreshCw, Clock } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import type { Article } from '@/types';
 import type { WeeklyBios, WeeklyBio } from '@/lib/aiTypes';
@@ -177,6 +177,7 @@ export function AIWeeklyBios({ articles }: AIWeeklyBiosProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isOpen, setIsOpen] = useState(false);
+  const [isCached, setIsCached] = useState(false);
 
   // Only show for allowed users
   const allowedEmails = ['hillier.dave@gmail.com', 'dave@davehillier.com'];
@@ -184,7 +185,7 @@ export function AIWeeklyBios({ articles }: AIWeeklyBiosProps) {
 
   if (!isAllowed) return null;
 
-  const generateBios = async () => {
+  const generateBios = async (forceRefresh = false) => {
     setLoading(true);
     setError(null);
     setIsOpen(true);
@@ -207,6 +208,7 @@ export function AIWeeklyBios({ articles }: AIWeeklyBiosProps) {
             source: a.source.name,
             publishedAt: a.publishedAt,
           })),
+          forceRefresh,
         }),
       });
 
@@ -216,6 +218,7 @@ export function AIWeeklyBios({ articles }: AIWeeklyBiosProps) {
 
       const data = await response.json();
       setWeeklyBios(data);
+      setIsCached(data.cached || false);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Something went wrong');
     } finally {
@@ -317,14 +320,24 @@ export function AIWeeklyBios({ articles }: AIWeeklyBiosProps) {
                     ))}
                   </div>
 
-                  {/* Regenerate button */}
-                  <div className="pt-4 border-t border-[var(--color-pearl)] flex justify-end">
+                  {/* Footer */}
+                  <div className="pt-4 border-t border-[var(--color-pearl)] flex items-center justify-between">
+                    <div className="flex items-center gap-2 text-xs text-[var(--color-silver)]">
+                      {isCached && (
+                        <div className="flex items-center gap-1 text-[var(--color-bronze)]">
+                          <Clock className="w-3 h-3" />
+                          <span>Cached</span>
+                        </div>
+                      )}
+                    </div>
                     <button
-                      onClick={() => generateBios()}
-                      className="text-sm text-[var(--color-bronze)] hover:text-[var(--color-bronze-dark)]
-                               font-medium transition-colors"
+                      onClick={() => generateBios(true)}
+                      disabled={loading}
+                      className="flex items-center gap-1 text-sm text-[var(--color-bronze)] hover:text-[var(--color-bronze-dark)]
+                               font-medium transition-colors disabled:opacity-50"
                     >
-                      Regenerate
+                      <RefreshCw className="w-3 h-3" />
+                      Refresh
                     </button>
                   </div>
                 </div>
