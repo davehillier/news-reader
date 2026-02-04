@@ -421,12 +421,12 @@ export function generateEmailHTML({
 }
 
 function escapeHtml(text: string): string {
-  const map: Record<string, string> = {
-    '&': '&amp;',
-    '<': '&lt;',
-    '>': '&gt;',
-    '"': '&quot;',
-    "'": '&#039;',
-  };
-  return text.replace(/[&<>"']/g, (m) => map[m]);
+  return text
+    // Escape < and > for security
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    // Escape quotes
+    .replace(/"/g, '&quot;')
+    // Only escape & if not already part of an HTML entity (e.g., &#163; or &amp;)
+    .replace(/&(?!#?\w+;)/g, '&amp;');
 }
