@@ -5,7 +5,9 @@ import { getAuth } from 'firebase-admin/auth';
 const firebaseAdminConfig = {
   projectId: process.env.FIREBASE_PROJECT_ID,
   clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-  privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
+  privateKey: process.env.FIREBASE_PRIVATE_KEY
+    ?.replace(/^"|"$/g, '')  // Strip wrapping quotes if present
+    .replace(/\\n/g, '\n'),
 };
 
 // Only initialize if credentials are available and not already initialized
