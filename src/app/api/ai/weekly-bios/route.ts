@@ -3,17 +3,18 @@ import { checkAuthFromRequest } from '@/lib/authCheck';
 import { checkRateLimit, RATE_LIMITS } from '@/lib/rateLimit';
 import { type WeeklyBios } from '@/lib/aiTypes';
 import { generateWeeklyBiosGemini } from '@/lib/gemini';
-import { getAICache, setAICache, invalidateAICache, recordUsageAndCheckBudget } from '@/lib/aiCache';
+import { getAICache, setAICache, invalidateAICache } from '@/lib/aiCache';
 
 const MAX_ARTICLES = 500;
 
 export async function POST(request: NextRequest) {
   const authResult = await checkAuthFromRequest(request);
 
-  if (!authResult.allowed) {
+  // Must be authenticated (logged in)
+  if (!authResult.authenticated) {
     return NextResponse.json(
       { error: 'Unauthorised' },
-      { status: 403 }
+      { status: 401 }
     );
   }
 
@@ -59,24 +60,23 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Check cache first (unless force refresh)
-    if (!forceRefresh) {
-      const cached = await getAICache<WeeklyBios>(userId, 'weekly-bios');
-      if (cached) {
-        return NextResponse.json({ ...cached, cached: true });
-      }
-    } else {
-      // Invalidate existing cache on force refresh
-      await invalidateAICache(userId, 'weekly-bios');
+    // Check cache first - return if exists and not forcing refresh
+    const cached = await getAICache<WeeklyBios>(userId, 'weekly-bios');
+    if (cached && !forceRefresh) {
+      return NextResponse.json({ ...cached, cached: true, canRefresh: authResult.canGenerate });
     }
 
-    // Check daily budget before making AI call
-    const budgetCheck = await recordUsageAndCheckBudget('weekly-bios', forceRefresh);
-    if (!budgetCheck.allowed) {
-      return NextResponse.json(
-        { error: budgetCheck.reason || 'Daily AI budget exceeded' },
-        { status: 429 }
-      );
+    // Only allowed users can force refresh (but anyone can trigger auto-generation if cache is empty)
+    if (forceRefresh && !authResult.canGenerate) {
+      // Not allowed to refresh - return cached content if available
+      if (cached) {
+        return NextResponse.json({ ...cached, cached: true, canRefresh: false });
+      }
+    }
+
+    // Invalidate existing cache on force refresh (only for allowed users)
+    if (forceRefresh && authResult.canGenerate) {
+      await invalidateAICache(userId, 'weekly-bios');
     }
 
     if (!process.env.GEMINI_API_KEY) {
@@ -91,7 +91,7 @@ export async function POST(request: NextRequest) {
     // Cache the result
     await setAICache(userId, 'weekly-bios', weeklyBios);
 
-    return NextResponse.json({ ...weeklyBios, cached: false });
+    return NextResponse.json({ ...weeklyBios, cached: false, canRefresh: true });
   } catch (error) {
     console.error('AI weekly bios error:', error);
     return NextResponse.json(

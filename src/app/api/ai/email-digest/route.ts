@@ -4,7 +4,7 @@ import { checkAuthFromRequest } from '@/lib/authCheck';
 import { checkRateLimit } from '@/lib/rateLimit';
 import { type MorningBriefing, type TalkingPoints, type WeeklyBios } from '@/lib/aiTypes';
 import { generateMorningBriefingGemini, generateTalkingPointsGemini, generateWeeklyBiosGemini } from '@/lib/gemini';
-import { getAICache, setAICache, recordUsageAndCheckBudget } from '@/lib/aiCache';
+import { getAICache, setAICache } from '@/lib/aiCache';
 import { generateEmailHTML } from '@/lib/emailTemplate';
 
 const MAX_ARTICLES = 500;
@@ -105,38 +105,18 @@ export async function POST(request: NextRequest) {
       publishedAt: a.publishedAt,
     }));
 
+    // Generate any missing content and cache it
     if (!briefing) {
-      const budgetCheck = await recordUsageAndCheckBudget('briefing', false);
-      if (!budgetCheck.allowed) {
-        return NextResponse.json(
-          { error: budgetCheck.reason || 'Daily AI budget exceeded' },
-          { status: 429 }
-        );
-      }
       briefing = await generateMorningBriefingGemini(articlesForAI);
       await setAICache(userId, 'briefing', { ...briefing, provider: 'gemini' });
     }
 
     if (!talkingPoints) {
-      const budgetCheck = await recordUsageAndCheckBudget('talking-points', false);
-      if (!budgetCheck.allowed) {
-        return NextResponse.json(
-          { error: budgetCheck.reason || 'Daily AI budget exceeded' },
-          { status: 429 }
-        );
-      }
       talkingPoints = await generateTalkingPointsGemini(articlesForAI);
       await setAICache(userId, 'talking-points', { ...talkingPoints, provider: 'gemini' });
     }
 
     if (!weeklyBios) {
-      const budgetCheck = await recordUsageAndCheckBudget('weekly-bios', false);
-      if (!budgetCheck.allowed) {
-        return NextResponse.json(
-          { error: budgetCheck.reason || 'Daily AI budget exceeded' },
-          { status: 429 }
-        );
-      }
       weeklyBios = await generateWeeklyBiosGemini(articlesForAI);
       await setAICache(userId, 'weekly-bios', weeklyBios);
     }

@@ -86,11 +86,11 @@ export function AIEmailDigest({ articles }: AIEmailDigestProps) {
 
   return (
     <>
-      {/* Email digest button - positioned top left */}
+      {/* Email digest button - positioned above Weekly Bios on left */}
       <button
         onClick={sendEmailDigest}
         disabled={loading || success}
-        className="fixed bottom-24 left-6 z-40 flex items-center gap-2 px-5 py-3 rounded-full
+        className="fixed bottom-42 left-6 z-40 flex items-center gap-2 px-5 py-3 rounded-full
                  bg-gradient-to-r from-[var(--color-bronze)] to-[var(--color-ink)]
                  text-white font-medium shadow-lg
                  hover:from-[var(--color-bronze-dark)] hover:to-[var(--color-steel)]
@@ -114,7 +114,7 @@ export function AIEmailDigest({ articles }: AIEmailDigestProps) {
       {/* Toast notification */}
       {showToast && (
         <div
-          className={`fixed bottom-44 left-6 z-50 flex items-center gap-3 px-5 py-3 rounded-lg
+          className={`fixed bottom-60 left-6 z-50 flex items-center gap-3 px-5 py-3 rounded-lg
                      shadow-lg animate-fade-in
                      ${success
                        ? 'bg-green-50 border border-green-200 text-green-800'

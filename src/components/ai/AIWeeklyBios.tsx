@@ -178,12 +178,10 @@ export function AIWeeklyBios({ articles }: AIWeeklyBiosProps) {
   const [error, setError] = useState<string | null>(null);
   const [isOpen, setIsOpen] = useState(false);
   const [isCached, setIsCached] = useState(false);
+  const [canRefresh, setCanRefresh] = useState(true);
 
-  // Only show for allowed users
-  const allowedEmails = ['hillier.dave@gmail.com', 'dave@davehillier.com'];
-  const isAllowed = user?.email && allowedEmails.includes(user.email.toLowerCase());
-
-  if (!isAllowed) return null;
+  // Show for all authenticated users
+  if (!user) return null;
 
   const generateBios = async (forceRefresh = false) => {
     setLoading(true);
@@ -212,13 +210,24 @@ export function AIWeeklyBios({ articles }: AIWeeklyBiosProps) {
         }),
       });
 
+      const data = await response.json();
+
+      // Handle 403 - user can't generate but may have cached content
+      if (response.status === 403) {
+        if (!weeklyBios) {
+          setError('No cached content available yet.');
+        }
+        setCanRefresh(false);
+        return;
+      }
+
       if (!response.ok) {
         throw new Error('Failed to generate weekly bios');
       }
 
-      const data = await response.json();
       setWeeklyBios(data);
       setIsCached(data.cached || false);
+      setCanRefresh(data.canRefresh !== false);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Something went wrong');
     } finally {
@@ -228,11 +237,11 @@ export function AIWeeklyBios({ articles }: AIWeeklyBiosProps) {
 
   return (
     <>
-      {/* Floating action button */}
+      {/* Floating action button - positioned above Ask Claude button */}
       <button
         onClick={() => generateBios()}
         disabled={loading}
-        className="fixed bottom-6 left-6 z-40 flex items-center gap-2 px-5 py-3 rounded-full
+        className="fixed bottom-24 left-6 z-40 flex items-center gap-2 px-5 py-3 rounded-full
                  bg-gradient-to-r from-[var(--color-ink)] to-[var(--color-steel)]
                  text-white font-medium shadow-lg
                  hover:from-[var(--color-steel)] hover:to-[var(--color-ink)]
@@ -330,15 +339,17 @@ export function AIWeeklyBios({ articles }: AIWeeklyBiosProps) {
                         </div>
                       )}
                     </div>
-                    <button
-                      onClick={() => generateBios(true)}
-                      disabled={loading}
-                      className="flex items-center gap-1 text-sm text-[var(--color-bronze)] hover:text-[var(--color-bronze-dark)]
-                               font-medium transition-colors disabled:opacity-50"
-                    >
-                      <RefreshCw className="w-3 h-3" />
-                      Refresh
-                    </button>
+                    {canRefresh && (
+                      <button
+                        onClick={() => generateBios(true)}
+                        disabled={loading}
+                        className="flex items-center gap-1 text-sm text-[var(--color-bronze)] hover:text-[var(--color-bronze-dark)]
+                                 font-medium transition-colors disabled:opacity-50"
+                      >
+                        <RefreshCw className="w-3 h-3" />
+                        Refresh
+                      </button>
+                    )}
                   </div>
                 </div>
               )}

@@ -39,12 +39,10 @@ export function AITalkingPoints({ articles }: AITalkingPointsProps) {
   const [provider, setProvider] = useState<AIProvider>('gemini');
   const [usedProvider, setUsedProvider] = useState<AIProvider | null>(null);
   const [isCached, setIsCached] = useState(false);
+  const [canRefresh, setCanRefresh] = useState(true);
 
-  // Only show for allowed users
-  const allowedEmails = ['hillier.dave@gmail.com', 'dave@davehillier.com'];
-  const isAllowed = user?.email && allowedEmails.includes(user.email.toLowerCase());
-
-  if (!isAllowed) return null;
+  // Show for all authenticated users
+  if (!user) return null;
 
   const generateTalkingPoints = async (selectedProvider: AIProvider = provider, forceRefresh = false) => {
     setLoading(true);
@@ -74,14 +72,25 @@ export function AITalkingPoints({ articles }: AITalkingPointsProps) {
         }),
       });
 
+      const data = await response.json();
+
+      // Handle 403 - user can't generate but may have cached content
+      if (response.status === 403) {
+        if (!talkingPoints) {
+          setError('No cached content available yet.');
+        }
+        setCanRefresh(false);
+        return;
+      }
+
       if (!response.ok) {
         throw new Error('Failed to generate talking points');
       }
 
-      const data = await response.json();
       setTalkingPoints(data);
       setUsedProvider(data.provider || selectedProvider);
       setIsCached(data.cached || false);
+      setCanRefresh(data.canRefresh !== false);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Something went wrong');
     } finally {
@@ -343,15 +352,17 @@ export function AITalkingPoints({ articles }: AITalkingPointsProps) {
                         </div>
                       )}
                     </div>
-                    <button
-                      onClick={() => generateTalkingPoints(provider, true)}
-                      disabled={loading}
-                      className="flex items-center gap-1 text-xs text-[var(--color-bronze)] hover:text-[var(--color-bronze-dark)]
-                               font-medium transition-colors disabled:opacity-50"
-                    >
-                      <RefreshCw className="w-3 h-3" />
-                      Refresh
-                    </button>
+                    {canRefresh && (
+                      <button
+                        onClick={() => generateTalkingPoints(provider, true)}
+                        disabled={loading}
+                        className="flex items-center gap-1 text-xs text-[var(--color-bronze)] hover:text-[var(--color-bronze-dark)]
+                                 font-medium transition-colors disabled:opacity-50"
+                      >
+                        <RefreshCw className="w-3 h-3" />
+                        Refresh
+                      </button>
+                    )}
                   </div>
                 </div>
               )}

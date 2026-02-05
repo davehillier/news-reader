@@ -4,7 +4,7 @@ import { checkRateLimit, RATE_LIMITS } from '@/lib/rateLimit';
 import { type AIProvider, type TalkingPoints } from '@/lib/aiTypes';
 import { generateTalkingPoints as generateTalkingPointsClaude } from '@/lib/claude';
 import { generateTalkingPointsGemini } from '@/lib/gemini';
-import { getAICache, setAICache, invalidateAICache, recordUsageAndCheckBudget } from '@/lib/aiCache';
+import { getAICache, setAICache, invalidateAICache } from '@/lib/aiCache';
 
 const MAX_ARTICLES = 500;
 
@@ -15,10 +15,11 @@ interface CachedTalkingPoints extends TalkingPoints {
 export async function POST(request: NextRequest) {
   const authResult = await checkAuthFromRequest(request);
 
-  if (!authResult.allowed) {
+  // Must be authenticated (logged in)
+  if (!authResult.authenticated) {
     return NextResponse.json(
       { error: 'Unauthorised' },
-      { status: 403 }
+      { status: 401 }
     );
   }
 
@@ -65,24 +66,23 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Check cache first (unless force refresh)
-    if (!forceRefresh) {
-      const cached = await getAICache<CachedTalkingPoints>(userId, 'talking-points');
-      if (cached) {
-        return NextResponse.json({ ...cached, cached: true });
-      }
-    } else {
-      // Invalidate existing cache on force refresh
-      await invalidateAICache(userId, 'talking-points');
+    // Check cache first - return if exists and not forcing refresh
+    const cached = await getAICache<CachedTalkingPoints>(userId, 'talking-points');
+    if (cached && !forceRefresh) {
+      return NextResponse.json({ ...cached, cached: true, canRefresh: authResult.canGenerate });
     }
 
-    // Check daily budget before making AI call
-    const budgetCheck = await recordUsageAndCheckBudget('talking-points', forceRefresh);
-    if (!budgetCheck.allowed) {
-      return NextResponse.json(
-        { error: budgetCheck.reason || 'Daily AI budget exceeded' },
-        { status: 429 }
-      );
+    // Only allowed users can force refresh (but anyone can trigger auto-generation if cache is empty)
+    if (forceRefresh && !authResult.canGenerate) {
+      // Not allowed to refresh - return cached content if available
+      if (cached) {
+        return NextResponse.json({ ...cached, cached: true, canRefresh: false });
+      }
+    }
+
+    // Invalidate existing cache on force refresh (only for allowed users)
+    if (forceRefresh && authResult.canGenerate) {
+      await invalidateAICache(userId, 'talking-points');
     }
 
     let talkingPoints: TalkingPoints;
@@ -109,7 +109,7 @@ export async function POST(request: NextRequest) {
     const resultWithProvider: CachedTalkingPoints = { ...talkingPoints, provider };
     await setAICache(userId, 'talking-points', resultWithProvider);
 
-    return NextResponse.json({ ...resultWithProvider, cached: false });
+    return NextResponse.json({ ...resultWithProvider, cached: false, canRefresh: true });
   } catch (error) {
     console.error('AI talking points error:', error);
     return NextResponse.json(

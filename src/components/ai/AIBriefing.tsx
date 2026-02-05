@@ -28,8 +28,9 @@ export function AIBriefing({ articles }: AIBriefingProps) {
   const [usedProvider, setUsedProvider] = useState<AIProvider | null>(null);
   const [isHidden, setIsHidden] = useState(false);
   const [isCached, setIsCached] = useState(false);
+  const [canRefresh, setCanRefresh] = useState(true);
 
-  // Only show for authenticated users; server determines if AI access is allowed
+  // Show for all authenticated users
   if (!user || isHidden) return null;
 
   const generateBriefing = async (selectedProvider: AIProvider = provider, forceRefresh = false) => {
@@ -59,10 +60,14 @@ export function AIBriefing({ articles }: AIBriefingProps) {
         }),
       });
 
+      const data = await response.json();
+
+      // Handle 403 - user can't generate but may have cached content
       if (response.status === 403) {
-        // User not authorised for AI features - hide the button
-        setIsHidden(true);
-        setIsOpen(false);
+        if (!briefing) {
+          setError('No cached content available yet.');
+        }
+        setCanRefresh(false);
         return;
       }
 
@@ -74,10 +79,10 @@ export function AIBriefing({ articles }: AIBriefingProps) {
         throw new Error('Failed to generate briefing');
       }
 
-      const data = await response.json();
       setBriefing(data);
       setUsedProvider(data.provider || selectedProvider);
       setIsCached(data.cached || false);
+      setCanRefresh(data.canRefresh !== false);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Something went wrong');
     } finally {
@@ -289,15 +294,17 @@ export function AIBriefing({ articles }: AIBriefingProps) {
                         </div>
                       )}
                     </div>
-                    <button
-                      onClick={() => generateBriefing(provider, true)}
-                      disabled={loading}
-                      className="flex items-center gap-1 text-sm text-[var(--color-bronze)] hover:text-[var(--color-bronze-dark)]
-                               font-medium transition-colors disabled:opacity-50"
-                    >
-                      <RefreshCw className="w-3 h-3" />
-                      Refresh
-                    </button>
+                    {canRefresh && (
+                      <button
+                        onClick={() => generateBriefing(provider, true)}
+                        disabled={loading}
+                        className="flex items-center gap-1 text-sm text-[var(--color-bronze)] hover:text-[var(--color-bronze-dark)]
+                                 font-medium transition-colors disabled:opacity-50"
+                      >
+                        <RefreshCw className="w-3 h-3" />
+                        Refresh
+                      </button>
+                    )}
                   </div>
                 </div>
               )}
