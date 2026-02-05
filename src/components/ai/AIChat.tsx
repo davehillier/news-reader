@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { MessageSquare, Send, Loader2, X, Sparkles } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
+import { isAIAllowedClient } from '@/lib/aiTypes';
 import type { Article } from '@/types';
 
 interface Message {
@@ -23,8 +24,7 @@ export function AIChat({ articles }: AIChatProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // Only show for allowed users
-  const allowedEmails = ['hillier.dave@gmail.com', 'dave@davehillier.com'];
-  const isAllowed = user?.email && allowedEmails.includes(user.email.toLowerCase());
+  const isAllowed = isAIAllowedClient(user?.email);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });

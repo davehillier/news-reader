@@ -95,3 +95,21 @@ export function isAIAllowed(email: string | null | undefined): boolean {
 
   return allowedEmails.includes(email.toLowerCase());
 }
+
+/**
+ * Client-side allow list check using NEXT_PUBLIC_ALLOWED_AI_EMAILS.
+ * Safe to use in 'use client' components.
+ */
+export function isAIAllowedClient(email: string | null | undefined): boolean {
+  if (!email) return false;
+
+  const envEmails = process.env.NEXT_PUBLIC_ALLOWED_AI_EMAILS;
+  if (!envEmails) return false;
+
+  const allowedEmails = envEmails
+    .split(',')
+    .map(e => e.trim().toLowerCase())
+    .filter(e => e.length > 0);
+
+  return allowedEmails.includes(email.toLowerCase());
+}

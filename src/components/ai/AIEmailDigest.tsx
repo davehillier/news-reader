@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { Mail, Loader2, Check, X } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
+import { isAIAllowedClient } from '@/lib/aiTypes';
 import type { Article } from '@/types';
 
 interface AIEmailDigestProps {
@@ -17,10 +18,7 @@ export function AIEmailDigest({ articles }: AIEmailDigestProps) {
   const [showToast, setShowToast] = useState(false);
 
   // Only show for allowed users
-  const allowedEmails = ['hillier.dave@gmail.com', 'dave@davehillier.com'];
-  const isAllowed = user?.email && allowedEmails.includes(user.email.toLowerCase());
-
-  if (!isAllowed) return null;
+  if (!isAIAllowedClient(user?.email)) return null;
 
   const sendEmailDigest = async () => {
     setLoading(true);

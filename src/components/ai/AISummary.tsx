@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { Sparkles, Loader2, TrendingUp, TrendingDown, Minus, AlertCircle } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
+import { isAIAllowedClient } from '@/lib/aiTypes';
 
 interface ArticleSummary {
   keyPoints: string[];
@@ -31,10 +32,7 @@ export function AISummary({ title, content, source }: AISummaryProps) {
   const [error, setError] = useState<string | null>(null);
 
   // Only show for allowed users
-  const allowedEmails = ['hillier.dave@gmail.com', 'dave@davehillier.com'];
-  const isAllowed = user?.email && allowedEmails.includes(user.email.toLowerCase());
-
-  if (!isAllowed) return null;
+  if (!isAIAllowedClient(user?.email)) return null;
 
   const generateSummary = async () => {
     setLoading(true);
