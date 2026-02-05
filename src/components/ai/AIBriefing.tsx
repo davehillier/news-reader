@@ -28,7 +28,7 @@ export function AIBriefing({ articles }: AIBriefingProps) {
   const [usedProvider, setUsedProvider] = useState<AIProvider | null>(null);
   const [isHidden, setIsHidden] = useState(false);
   const [isCached, setIsCached] = useState(false);
-  const [canRefresh, setCanRefresh] = useState(true);
+  const [canRefresh, setCanRefresh] = useState(false);
 
   // Show for all authenticated users
   if (!user || isHidden) return null;

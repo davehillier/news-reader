@@ -39,7 +39,7 @@ export function AITalkingPoints({ articles }: AITalkingPointsProps) {
   const [provider, setProvider] = useState<AIProvider>('gemini');
   const [usedProvider, setUsedProvider] = useState<AIProvider | null>(null);
   const [isCached, setIsCached] = useState(false);
-  const [canRefresh, setCanRefresh] = useState(true);
+  const [canRefresh, setCanRefresh] = useState(false);
 
   // Show for all authenticated users
   if (!user) return null;

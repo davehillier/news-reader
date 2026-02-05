@@ -178,7 +178,7 @@ export function AIWeeklyBios({ articles }: AIWeeklyBiosProps) {
   const [error, setError] = useState<string | null>(null);
   const [isOpen, setIsOpen] = useState(false);
   const [isCached, setIsCached] = useState(false);
-  const [canRefresh, setCanRefresh] = useState(true);
+  const [canRefresh, setCanRefresh] = useState(false);
 
   // Show for all authenticated users
   if (!user) return null;

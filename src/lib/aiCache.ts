@@ -54,12 +54,13 @@ export async function getAICache<T>(
 
 /**
  * Store AI response in cache.
+ * Returns true if write succeeded, false if it failed.
  */
 export async function setAICache<T>(
   _userId: string, // kept for API compatibility, not used
   type: AICacheType,
   data: T
-): Promise<void> {
+): Promise<boolean> {
   try {
     const cacheKey = getCacheKey(type);
     const now = Date.now();
@@ -72,9 +73,11 @@ export async function setAICache<T>(
     console.log(`[Cache] WRITE - Storing cache for key: ${cacheKey}`);
     await adminDb.collection(CACHE_COLLECTION).doc(cacheKey).set(entry);
     console.log(`[Cache] WRITE SUCCESS - Cache stored for key: ${cacheKey}`);
+    return true;
   } catch (error) {
-    console.error('[Cache] ERROR writing AI cache:', error);
-    // Don't throw - caching is best-effort
+    const msg = error instanceof Error ? error.message : String(error);
+    console.error(`[Cache] ERROR writing AI cache for key ${getCacheKey(type)}: ${msg}`);
+    return false;
   }
 }
 

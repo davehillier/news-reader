@@ -107,9 +107,9 @@ export async function POST(request: NextRequest) {
 
     // Cache the result
     const resultWithProvider: CachedBriefing = { ...briefing, provider };
-    await setAICache(userId, 'briefing', resultWithProvider);
+    const cacheWriteOk = await setAICache(userId, 'briefing', resultWithProvider);
 
-    return NextResponse.json({ ...resultWithProvider, cached: false, canRefresh: true });
+    return NextResponse.json({ ...resultWithProvider, cached: false, cacheWriteOk, canRefresh: authResult.canGenerate });
   } catch (error) {
     console.error('AI briefing error:', error);
     return NextResponse.json(

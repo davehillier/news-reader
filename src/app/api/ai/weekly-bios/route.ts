@@ -89,9 +89,9 @@ export async function POST(request: NextRequest) {
     const weeklyBios = await generateWeeklyBiosGemini(articles);
 
     // Cache the result
-    await setAICache(userId, 'weekly-bios', weeklyBios);
+    const cacheWriteOk = await setAICache(userId, 'weekly-bios', weeklyBios);
 
-    return NextResponse.json({ ...weeklyBios, cached: false, canRefresh: true });
+    return NextResponse.json({ ...weeklyBios, cached: false, cacheWriteOk, canRefresh: authResult.canGenerate });
   } catch (error) {
     console.error('AI weekly bios error:', error);
     return NextResponse.json(

@@ -107,9 +107,9 @@ export async function POST(request: NextRequest) {
 
     // Cache the result
     const resultWithProvider: CachedTalkingPoints = { ...talkingPoints, provider };
-    await setAICache(userId, 'talking-points', resultWithProvider);
+    const cacheWriteOk = await setAICache(userId, 'talking-points', resultWithProvider);
 
-    return NextResponse.json({ ...resultWithProvider, cached: false, canRefresh: true });
+    return NextResponse.json({ ...resultWithProvider, cached: false, cacheWriteOk, canRefresh: authResult.canGenerate });
   } catch (error) {
     console.error('AI talking points error:', error);
     return NextResponse.json(
