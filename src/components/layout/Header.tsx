@@ -25,7 +25,7 @@ export function Header({ lastUpdated, isRefreshing, onRefresh }: HeaderProps) {
       <div className="max-w-6xl mx-auto px-4 sm:px-6">
         <div className="flex items-center justify-between h-16 sm:h-20">
           {/* Logo and title */}
-          <div className="flex items-center gap-3">
+          <Link href="/" className="flex items-center gap-3 hover:opacity-90 transition-opacity">
             {/* Logo mark */}
             <div className="relative w-10 h-10 sm:w-12 sm:h-12 rounded-sm overflow-hidden
                           bg-[var(--color-ink)] flex items-center justify-center
@@ -47,7 +47,7 @@ export function Header({ lastUpdated, isRefreshing, onRefresh }: HeaderProps) {
                 Your 5-minute news scan
               </p>
             </div>
-          </div>
+          </Link>
 
           {/* Right side: Last updated + Refresh + Auth */}
           <div className="flex items-center gap-3 sm:gap-4">

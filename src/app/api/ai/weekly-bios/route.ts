@@ -4,6 +4,7 @@ import { checkRateLimit, RATE_LIMITS } from '@/lib/rateLimit';
 import { type WeeklyBios } from '@/lib/aiTypes';
 import { generateWeeklyBiosGemini } from '@/lib/gemini';
 import { getAICache, setAICache, invalidateAICache } from '@/lib/aiCache';
+import { syncBiosToPersonCatalog } from '@/lib/personCatalog';
 
 const MAX_ARTICLES = 500;
 
@@ -90,6 +91,11 @@ export async function POST(request: NextRequest) {
 
     // Cache the result
     const cacheWriteOk = await setAICache(userId, 'weekly-bios', weeklyBios);
+
+    // Sync generated bios to the person catalog (fire and forget)
+    syncBiosToPersonCatalog(weeklyBios.bios, articles).catch(err =>
+      console.error('[WeeklyBios] Catalog sync failed:', err)
+    );
 
     return NextResponse.json({ ...weeklyBios, cached: false, cacheWriteOk, canRefresh: authResult.canGenerate });
   } catch (error) {

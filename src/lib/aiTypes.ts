@@ -96,6 +96,24 @@ export function isAIAllowed(email: string | null | undefined): boolean {
   return allowedEmails.includes(email.toLowerCase());
 }
 
+export interface CatalogPerson {
+  id: string;
+  name: string;
+  role: string;
+  photoSearchQuery: string;
+  whoTheyAre: string;
+  whyFamous: string;
+  category: string;
+  newsAppearances: Array<{
+    date: number;
+    whyInNews: string;
+    sources: string[];
+  }>;
+  firstSeen: number;
+  lastSeen: number;
+  updatedAt: number;
+}
+
 /**
  * Client-side allow list check using NEXT_PUBLIC_ALLOWED_AI_EMAILS.
  * Safe to use in 'use client' components.
