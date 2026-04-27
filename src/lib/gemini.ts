@@ -1,15 +1,17 @@
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import { GoogleGenAI } from '@google/genai';
 import type { ArticleSummary, MorningBriefing, TalkingPoints, WeeklyBios } from './aiTypes';
 
-let geminiClient: GoogleGenerativeAI | null = null;
+const MODEL = process.env.GEMINI_MODEL ?? 'gemini-3-flash-preview';
 
-export function getGeminiClient(): GoogleGenerativeAI {
+let geminiClient: GoogleGenAI | null = null;
+
+export function getGeminiClient(): GoogleGenAI {
   if (!geminiClient) {
     const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) {
       throw new Error('GEMINI_API_KEY is not configured');
     }
-    geminiClient = new GoogleGenerativeAI(apiKey);
+    geminiClient = new GoogleGenAI({ apiKey });
   }
   return geminiClient;
 }
@@ -20,7 +22,6 @@ export async function summariseArticleGemini(
   source: string
 ): Promise<ArticleSummary> {
   const client = getGeminiClient();
-  const model = client.getGenerativeModel({ model: 'gemini-2.0-flash' });
 
   const prompt = `Analyse this news article and provide a structured summary.
 
@@ -36,8 +37,11 @@ Respond with JSON only, no markdown formatting or code blocks:
   "topics": ["topic1", "topic2"]
 }`;
 
-  const result = await model.generateContent(prompt);
-  const text = result.response.text();
+  const result = await client.models.generateContent({
+    model: MODEL,
+    contents: prompt,
+  });
+  const text = result.text ?? '';
 
   try {
     // Clean up potential markdown code blocks
@@ -57,7 +61,6 @@ export async function generateMorningBriefingGemini(
   articles: Array<{ title: string; description: string; category: string; source: string }>
 ): Promise<MorningBriefing> {
   const client = getGeminiClient();
-  const model = client.getGenerativeModel({ model: 'gemini-2.0-flash' });
 
   // Only use first 15 articles, truncate descriptions to save tokens
   const articleList = articles
@@ -97,8 +100,11 @@ Respond with JSON only, no markdown:
 
 Limit topStories to 5 most significant. Be concise but insightful.`;
 
-  const result = await model.generateContent(prompt);
-  const text = result.response.text();
+  const result = await client.models.generateContent({
+    model: MODEL,
+    contents: prompt,
+  });
+  const text = result.text ?? '';
 
   try {
     const cleaned = text.replace(/```json\n?|\n?```/g, '').trim();
@@ -118,7 +124,6 @@ export async function askAboutNewsGemini(
   articles: Array<{ title: string; description: string; category: string; source: string }>
 ): Promise<string> {
   const client = getGeminiClient();
-  const model = client.getGenerativeModel({ model: 'gemini-2.0-flash' });
 
   // Truncate descriptions to save tokens
   const articleContext = articles
@@ -138,15 +143,17 @@ Question: ${question}
 
 Provide a brief, helpful answer based on the available news. If the question isn't covered by the news, say so politely.`;
 
-  const result = await model.generateContent(prompt);
-  return result.response.text();
+  const result = await client.models.generateContent({
+    model: MODEL,
+    contents: prompt,
+  });
+  return result.text ?? '';
 }
 
 export async function generateTalkingPointsGemini(
   articles: Array<{ title: string; description: string; category: string; source: string; publishedAt: string }>
 ): Promise<TalkingPoints> {
   const client = getGeminiClient();
-  const model = client.getGenerativeModel({ model: 'gemini-2.0-flash' });
 
   // Truncate descriptions to save tokens
   const articleList = articles
@@ -205,8 +212,11 @@ Respond with JSON only:
   }
 }`;
 
-  const result = await model.generateContent(prompt);
-  const text = result.response.text();
+  const result = await client.models.generateContent({
+    model: MODEL,
+    contents: prompt,
+  });
+  const text = result.text ?? '';
 
   try {
     const cleaned = text.replace(/```json\n?|\n?```/g, '').trim();
@@ -244,7 +254,6 @@ export async function generateWeeklyBiosGemini(
   articles: Array<{ title: string; description: string; category: string; source: string; publishedAt: string }>
 ): Promise<WeeklyBios> {
   const client = getGeminiClient();
-  const model = client.getGenerativeModel({ model: 'gemini-2.0-flash' });
 
   // Truncate descriptions to save tokens
   const articleList = articles
@@ -298,8 +307,11 @@ IMPORTANT:
 - Be specific about WHY they're in the news this week - reference actual stories
 - The photoSearchQuery should be specific enough to find a recognisable headshot`;
 
-  const result = await model.generateContent(prompt);
-  const text = result.response.text();
+  const result = await client.models.generateContent({
+    model: MODEL,
+    contents: prompt,
+  });
+  const text = result.text ?? '';
 
   try {
     const cleaned = text.replace(/```json\n?|\n?```/g, '').trim();
